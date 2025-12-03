@@ -22,6 +22,20 @@ def make_sample_df() -> pd.DataFrame:
 
 class TestDataCleaner(unittest.TestCase):
     """Test suite for DataCleaner class."""
+    
+    def make_sample_df() -> pd.DataFrame:
+    """Create a small DataFrame for testing.
+
+    The DataFrame intentionally contains missing values, extra whitespace
+    in a text column, and an obvious numeric outlier.
+    """
+    return pd.DataFrame(
+        {
+            "name": [" Alice ", "Bob", None, " Carol  "],
+            "age": [25, None, 35, 120],  # 120 is a likely outlier
+            "city": ["SCL", "LPZ", "SCL", "LPZ"],
+        }
+    )
 
     def test_example_trim_strings_with_pandas_testing(self):
         """Ejemplo de test usando pandas.testing para comparar DataFrames completos.
