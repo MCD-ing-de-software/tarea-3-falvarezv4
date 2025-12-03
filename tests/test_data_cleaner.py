@@ -80,7 +80,7 @@ class TestDataCleaner(unittest.TestCase):
         missing_in_age = result_df["age"].isna().sum()
         self.assertEqual(missing_in_name, 0, "La columna 'name' debería tener 0 valores faltantes")
         self.assertEqual(missing_in_age, 0,"La columna 'age' debería tener 0 valores faltantes")
-        self.assertLess(len(result_df), len(df),
+        self.assertLess(len(result_df), len(df), "El DataFrame resultante debería tener menos filas que el original")
 
     def test_drop_invalid_rows_raises_keyerror_for_unknown_column(self):
         df = self.make_sample_df()
