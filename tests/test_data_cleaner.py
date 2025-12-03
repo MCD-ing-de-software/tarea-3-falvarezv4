@@ -73,80 +73,59 @@ class TestDataCleaner(unittest.TestCase):
         pdt.assert_series_equal(result["name"], expected_name_series, check_names=True)
 
     def test_drop_invalid_rows_removes_rows_with_missing_values(self):
-        """Test que verifica que el método drop_invalid_rows elimina correctamente las filas
-        que contienen valores faltantes (NaN o None) en las columnas especificadas.
-        
-        Escenario esperado:
-        - Crear un DataFrame con valores faltantes usando make_sample_df()
-        - Llamar a drop_invalid_rows con las columnas "name" y "age"
-        - Verificar que el DataFrame resultante no tiene valores faltantes en esas columnas (usar self.assertEqual para comparar .isna().sum() con 0 - comparación simple de enteros, unittest es suficiente)
-        - Verificar que el DataFrame resultante tiene menos filas que el original (usar self.assertLess con len() - comparación simple de enteros, unittest es suficiente)
-        """
+        df = self.make_sample_df()
+        cleaner = DataCleaner(df.copy())
+        result_df = cleaner.drop_invalid_rows(["name", "age"])
+        missing_in_name = result_df["name"].isna().sum()
+        missing_in_age = result_df["age"].isna().sum()
+        self.assertEqual(missing_in_name, 0, "La columna 'name' debería tener 0 valores faltantes")
+        self.assertEqual(missing_in_age, 0,"La columna 'age' debería tener 0 valores faltantes")
+        self.assertLess(len(result_df), len(df),
 
     def test_drop_invalid_rows_raises_keyerror_for_unknown_column(self):
-        """Test que verifica que el método drop_invalid_rows lanza un KeyError cuando
-        se llama con una columna que no existe en el DataFrame.
-        
-        Escenario esperado:
-        - Crear un DataFrame usando make_sample_df()
-        - Llamar a drop_invalid_rows con una columna que no existe (ej: "does_not_exist")
-        - Verificar que se lanza un KeyError (usar self.assertRaises)
-        """
+        df = self.make_sample_df()
+        cleaner = DataCleaner(df)
+        with self.assertRaises(KeyError):
+            cleaner.drop_invalid_rows(["does_not_exist"])
 
     def test_trim_strings_strips_whitespace_without_changing_other_columns(self):
-        """Test que verifica que el método trim_strings elimina correctamente los espacios
-        en blanco al inicio y final de los valores en las columnas especificadas, sin modificar
-        el DataFrame original ni las columnas no especificadas.
-        
-        Escenario esperado:
-        - Crear un DataFrame con espacios en blanco usando make_sample_df()
-        - Llamar a trim_strings con la columna "name"
-        - Verificar que el DataFrame original no fue modificado (mantiene los espacios) (usar self.assertEqual para comparar valores específicos como strings individuales - unittest es suficiente para strings)
-        - Verificar que en el DataFrame resultante los valores de "name" no tienen espacios al inicio/final (usar self.assertEqual para comparar valores específicos como strings individuales - unittest es suficiente)
-        - Verificar que las columnas no especificadas (ej: "city") permanecen sin cambios (si comparas Series completas, usar pandas.testing.assert_series_equal() ya que maneja mejor los índices y tipos de Pandas; si comparas valores individuales, self.assertEqual es suficiente)
-        """
+        df = self.make_sample_df()
+        original_df = df.copy()
+        cleaner = DataCleaner(df.copy())
+        result_df = cleaner.trim_strings(["name"])
+        self.assertEqual(original_df.loc[0, "name"], " Alice ","El DataFrame original debería mantener los espacios en blanco")
+        self.assertEqual(result_df.loc[0, "name"], "Alice","El primer nombre debería estar sin espacios al inicio/final")
+        self.assertEqual(result_df.loc[2, "name"], "Charlie","El tercer nombre debería estar sin espacios al final")
+        pdt.assert_series_equal(result_df["city"], original_df["city"],"La columna 'city' no debería ser modificada")
+        pdt.assert_series_equal(result_df["age"], original_df["age"],"La columna 'age' no debería ser modificada")
 
     def test_trim_strings_raises_typeerror_for_non_string_column(self):
-        """Test que verifica que el método trim_strings lanza un TypeError cuando
-        se llama con una columna que no es de tipo string.
-        
-        Escenario esperado:
-        - Crear un DataFrame usando make_sample_df()
-        - Llamar a trim_strings con una columna numérica (ej: "age")
-        - Verificar que se lanza un TypeError (usar self.assertRaises)
-        """
+        df = self.make_sample_df()
+        cleaner = DataCleaner(df)
+        with self.assertRaises(TypeError):
+            cleaner.trim_strings(["age"])
 
     def test_remove_outliers_iqr_removes_extreme_values(self):
-        """Test que verifica que el método remove_outliers_iqr elimina correctamente los
-        valores extremos (outliers) de una columna numérica usando el método del rango
-        intercuartílico (IQR).
-        
-        Escenario esperado:
-        - Crear un DataFrame con valores extremos usando make_sample_df() (contiene edad=120)
-        - Llamar a remove_outliers_iqr con la columna "age" y factor=1.5
-        - Verificar que el valor extremo (120) fue eliminado del resultado (usar self.assertNotIn para verificar que 120 no está en los valores de la columna)
-        - Verificar que al menos uno de los valores no extremos (25 o 35) permanece en el resultado (usar self.assertIn para verificar que está presente)
-        """
+        df = self.make_sample_df()
+        cleaner = DataCleaner(df.copy())
+        result_df = cleaner.remove_outliers_iqr("age", factor=1.5)
+        self.assertNotIn(120, result_df["age"].values,"El valor extremo 120 debería ser eliminado")
+        has_normal_value = any(val in result_df["age"].values for val in [25, 35])
+        self.assertTrue(has_normal_value,"Al menos uno de los valores normales (25 o 35) debería permanecer")
+        normal_values_present = [val for val in [25, 35] if val in result_df["age"].values]
+        self.assertGreater(len(normal_values_present), 0,"Debería haber al menos un valor normal presente")
 
     def test_remove_outliers_iqr_raises_keyerror_for_missing_column(self):
-        """Test que verifica que el método remove_outliers_iqr lanza un KeyError cuando
-        se llama con una columna que no existe en el DataFrame.
-        
-        Escenario esperado:
-        - Crear un DataFrame usando make_sample_df()
-        - Llamar a remove_outliers_iqr con una columna que no existe (ej: "salary")
-        - Verificar que se lanza un KeyError (usar self.assertRaises)
-        """
+        df = self.make_sample_df()
+        cleaner = DataCleaner(df)
+        with self.assertRaises(KeyError):
+            cleaner.remove_outliers_iqr("salary")
 
     def test_remove_outliers_iqr_raises_typeerror_for_non_numeric_column(self):
-        """Test que verifica que el método remove_outliers_iqr lanza un TypeError cuando
-        se llama con una columna que no es de tipo numérico.
-        
-        Escenario esperado:
-        - Crear un DataFrame usando make_sample_df()
-        - Llamar a remove_outliers_iqr con una columna de texto (ej: "city")
-        - Verificar que se lanza un TypeError (usar self.assertRaises)
-        """
+        df = self.make_sample_df()
+        cleaner = DataCleaner(df)
+        with self.assertRaises(TypeError):
+            cleaner.remove_outliers_iqr("city")
 
 
 if __name__ == "__main__":
